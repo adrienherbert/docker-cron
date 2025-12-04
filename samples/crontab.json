@@ -1,0 +1,23 @@
+[
+ {
+  "name": "Ping",
+  "comment": "PING : Vérifie juste que le fichier est bien traité",
+  "schedule": "* * * * *",
+  "container": "test_cron",
+  "command": "echo 'PONG'"
+ },
+ {
+  "name": "Backup",
+  "comment": "Sauvegarde de la base de données et des images d'hormur.com",
+  "schedule": "0 1 * * *",
+  "container": "hormur_backup_system",
+  "command": "/helpers/backup.sh"
+ },
+ {
+  "name": "Prune",
+  "comment": "Élagage des sauvegardes afin de n'en garder qu'une par jour durant 7 jours",
+  "schedule": "0 4 * * *",
+  "container": "hormur_backup_system",
+  "command": "/helpers/prune.sh"
+ }
+]

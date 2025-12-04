@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+# génération des crontabs
+python3 /usr/local/bin/build-crontab '/cron/crontab.json'
+# gestion des droits du socket docker
+DOCKER_SOCK="/var/run/docker.sock"
+SOCKET_GID=$(stat -c '%g' "$DOCKER_SOCK")
+addgroup -g "$SOCKET_GID" docker-external || true
+adduser root docker-external
+adduser docker docker-external
+"$@"

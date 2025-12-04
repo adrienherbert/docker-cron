@@ -1,0 +1,113 @@
+#!/bin/env python3
+import os
+import argparse
+import json
+import logging
+import sys
+
+SCRIPT_DIR = os.environ.get('SCRIPT_DIR', "/tmp/cron/cron-scripts")
+CRON_FILE = os.environ.get('CRON_FILE', "/tmp/cron/crons")
+
+
+class CronItem:
+    def __init__(
+        self,
+        name: str,
+        comment: str,
+        schedule: str,
+        container: str,
+        command: str
+    ):
+        self.name = name
+        self.comment = comment
+        self.schedule = schedule
+        self.container = container
+        self.command = command
+
+
+def main(cronfile: str, logger: logging.Logger):
+    logger.info("Génération de la crontab")
+    crontab = list()
+    # récupère le JSON en dict
+    with open(cronfile) as f:
+        d = json.load(f)
+    # on map
+    cronItems = map(generate_cron_item, d)
+    open(CRON_FILE, 'w').close()
+    for cronItem in cronItems:
+        scriptPath = get_script_path(cronItem)
+        with open(f"{SCRIPT_DIR}/{cronItem.name}.sh", 'w') as f:
+            f.write(generate_script(cronItem))
+        crontab.append(generate_cron_line(cronItem))
+        logger.debug(f"Script généré pour {cronItem.name}: {scriptPath}")
+    with open(f"{CRON_FILE}", 'w') as f:
+        f.write('\n'.join(crontab))
+        logger.info(f"Fichier {CRON_FILE} généré")
+    pass
+
+
+def init():
+    # assure de l'existance du répertoire des scripts
+    create_dir_if_not_exists(SCRIPT_DIR)
+    # Parsing des paramètres de la commande
+    parser = argparse.ArgumentParser(
+        prog='build-cron',
+        description='Génération de build cron depuis JSON',
+    )
+    parser.add_argument(
+        'cronfile', help='Chemin du fichier json de cron', type=str)
+    parser.add_argument('-v', '--verbose', action='store_true')
+    args = parser.parse_args()
+    logLevel = logging.DEBUG if args.verbose else logging.INFO
+    cronfile = args.cronfile
+    # initialisation du logger
+    logger = logging.getLogger('build-crontab')
+    logger.setLevel(logLevel)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logLevel)
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.formatter = formatter
+    logger.addHandler(handler)
+    # appel à main
+    return main(cronfile, logger)
+
+
+def create_dir_if_not_exists(dirPath: str):
+    if not os.path.exists(dirPath):
+        os.makedirs(dirPath)
+
+
+def generate_cron_item(dictItem: dict) -> CronItem:
+    return CronItem(
+        name=dictItem['name'],
+        comment=dictItem['comment'],
+        schedule=dictItem['schedule'],
+        container=dictItem['container'],
+        command=dictItem['command'],
+    )
+
+
+def generate_script(cronItem: CronItem) -> str:
+    def log(log): return f"echo '[CRON] [{cronItem.name}] {log}'"
+    result = "\n".join([
+        "#!/bin/sh",
+        log("Début du traitement"),
+        log(cronItem.comment),
+        f"docker exec {cronItem.container} {cronItem.command}",
+        log("Fin du traitement"),
+    ])
+    return result
+
+
+def generate_cron_line(cronItem: CronItem) -> str:
+    scriptPath = get_script_path(cronItem)
+    return f"{cronItem.schedule} /bin/sh {scriptPath}"
+
+
+def get_script_path(cronItem: CronItem) -> str:
+    return f"{SCRIPT_DIR}/{cronItem.name}.sh"
+
+
+if __name__ == "__main__":
+    init()

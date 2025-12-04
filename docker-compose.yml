@@ -1,0 +1,13 @@
+services:
+  cron:
+    build:
+      context: .
+    restart: unless-stopped
+    container_name: test_cron
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - ./samples/crontab.json:/cron/crontab.json:ro
+    tmpfs:
+      - /cron-scripts
+    labels:
+      - traefik.enable=false
