@@ -19,5 +19,12 @@
   "schedule": "0 4 * * *",
   "container": "hormur_backup_system",
   "command": "/helpers/prune.sh"
+ },
+ {
+  "name": "Echapement",
+  "comment": "Échapement des caractère 1: ', 2: \", 3: $, 4: \\",
+  "schedule": "* * * * *",
+  "container": "test_cron",
+  "command": "echo 'PONG'"
  }
 ]

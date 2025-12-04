@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 import sys
+import re
 
 SCRIPT_DIR = os.environ.get('SCRIPT_DIR', "/tmp/cron/cron-scripts")
 CRON_FILE = os.environ.get('CRON_FILE', "/tmp/cron/crons")
@@ -80,8 +81,8 @@ def create_dir_if_not_exists(dirPath: str):
 
 def generate_cron_item(dictItem: dict) -> CronItem:
     return CronItem(
-        name=dictItem['name'],
-        comment=dictItem['comment'],
+        name=get_bash_safety_string(dictItem['name']),
+        comment=get_bash_safety_string(dictItem['comment']),
         schedule=dictItem['schedule'],
         container=dictItem['container'],
         command=dictItem['command'],
@@ -107,6 +108,12 @@ def generate_cron_line(cronItem: CronItem) -> str:
 
 def get_script_path(cronItem: CronItem) -> str:
     return f"{SCRIPT_DIR}/{cronItem.name}.sh"
+
+
+def get_bash_safety_string(string: str) -> str:
+    string = re.sub(r"'", "’", string)  # cheapos mais fonctionnel ^^
+    string = re.sub(r'\$', '\\$', string)
+    return string
 
 
 if __name__ == "__main__":
