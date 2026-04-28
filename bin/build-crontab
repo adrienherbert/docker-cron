@@ -16,13 +16,15 @@ class CronItem:
         name: str,
         comment: str,
         schedule: str,
-        container: str,
-        command: str
+        command: str,
+        container: str = None,
+        service: str = None,
     ):
         self.name = name
         self.comment = comment
         self.schedule = schedule
         self.container = container
+        self.service = service
         self.command = command
 
 
@@ -84,18 +86,29 @@ def generate_cron_item(dictItem: dict) -> CronItem:
         name=get_bash_safety_string(dictItem['name']),
         comment=get_bash_safety_string(dictItem['comment']),
         schedule=dictItem['schedule'],
-        container=dictItem['container'],
+        container=dictItem.get('container'),
+        service=dictItem.get('service'),
         command=dictItem['command'],
     )
 
 
 def generate_script(cronItem: CronItem) -> str:
     def log(log): return f"echo '[CRON] [{cronItem.name}] {log}'"
+    if cronItem.service:
+        exec_cmd = "\n".join([
+            f'CONTAINER=$(docker ps'
+            f' --filter "label=com.docker.compose.service={cronItem.service}"'
+            f' --filter "label=com.docker.compose.project=${{COMPOSE_PROJECT_NAME}}"'
+            f' --filter "status=running" -q | head -1)',
+            f'docker exec "$CONTAINER" {cronItem.command}',
+        ])
+    else:
+        exec_cmd = f"docker exec {cronItem.container} {cronItem.command}"
     result = "\n".join([
         "#!/bin/sh",
         log("Début du traitement"),
         log(cronItem.comment),
-        f"docker exec {cronItem.container} {cronItem.command}",
+        exec_cmd,
         log("Fin du traitement"),
     ])
     return result
